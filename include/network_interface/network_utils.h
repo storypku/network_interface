@@ -37,7 +37,7 @@ inline bool system_is_big_endian()
 
 // little-endian
 template<typename T>
-T read_le(const std::vector<uint8_t> & bufArray,
+T read_le(std::vector<uint8_t>::iterator bufArray,
           const uint32_t& offset,
           const float& factor,
           const uint32_t& valueOffset)
@@ -47,9 +47,7 @@ T read_le(const std::vector<uint8_t> & bufArray,
   for (uint32_t i = sizeof(T); i > 0; i--)
   {
     rcvData <<= 8;
-    // Need to use -1 because array is 0-based
-    // and offset is not.
-    rcvData |= bufArray[(offset - 1) + i];
+    rcvData |= *(bufArray + offset + i - 1);
   }
 
   T retVal = 0;
@@ -61,7 +59,7 @@ T read_le(const std::vector<uint8_t> & bufArray,
 };
 
 template<typename T>
-T read_le(const std::vector<uint8_t> & bufArray,
+T read_le(std::vector<uint8_t>::iterator bufArray,
           const uint32_t & offset)
 {
   return read_le<T>(bufArray, offset, 1.0, 0);
@@ -93,7 +91,7 @@ std::vector<uint8_t> write_le(const T & source)
 
 // big-endian
 template<typename T>
-T read_be(const std::vector<uint8_t> & bufArray,
+T read_be(std::vector<uint8_t>::iterator bufArray,
           const uint32_t & offset,
           const float & factor,
           const uint32_t & valueOffset)
@@ -103,7 +101,7 @@ T read_be(const std::vector<uint8_t> & bufArray,
   for (size_t i = 0; i < sizeof(T); i++)
   {
     rcvData <<= 8;
-    rcvData |= bufArray[(offset) + i];
+    rcvData |= *(bufArray + offset + i);
   }
 
   T retVal;
@@ -115,7 +113,7 @@ T read_be(const std::vector<uint8_t> & bufArray,
 };
 
 template<typename T>
-T read_be(const std::vector<uint8_t> & bufArray,
+T read_be(std::vector<uint8_t>::iterator bufArray,
           const uint32_t & offset)
 {
   return read_be<T>(bufArray, offset, 1.0, 0);
@@ -149,16 +147,16 @@ std::vector<uint8_t> write_be(const T & source)
   return ret_val;
 };
 
-inline int32_t find_magic_word(const std::vector<uint8_t> & in,
+inline int32_t find_magic_word(std::vector<uint8_t>::iterator in,
+                               std::vector<uint8_t>::iterator in_end,
                                size_t magic_word)
 {
   bool packet_found = false;
   uint32_t i = 0;
   uint32_t chunk;
   const uint32_t chunk_bytes = sizeof(magic_word);
-  size_t buf_size = in.size();
 
-  while (!packet_found && buf_size >= chunk_bytes)
+  while (!packet_found && (in_end - in) >= chunk_bytes)
   {
     chunk = read_be<uint32_t>(in, i);
 
@@ -169,7 +167,7 @@ inline int32_t find_magic_word(const std::vector<uint8_t> & in,
     }
 
     i++;
-    buf_size--;
+    in++;
   }
 
   // Just in case
