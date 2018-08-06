@@ -44,7 +44,7 @@ T read_le(const std::vector<uint8_t> & bufArray,
 {
   uint64_t rcvData = 0;
 
-  for (uint32_t i = bufArray.size(); i > 0; i--)
+  for (uint32_t i = sizeof(T); i > 0; i--)
   {
     rcvData <<= 8;
     // Need to use -1 because array is 0-based
@@ -100,7 +100,7 @@ T read_be(const std::vector<uint8_t> & bufArray,
 {
   uint64_t rcvData = 0;
 
-  for (size_t i = 0; i < bufArray.size(); i++)
+  for (size_t i = 0; i < sizeof(T); i++)
   {
     rcvData <<= 8;
     rcvData |= bufArray[(offset) + i];
