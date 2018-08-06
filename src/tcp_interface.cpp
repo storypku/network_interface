@@ -21,7 +21,8 @@ TCPInterface::~TCPInterface()
 {
 }
 
-return_statuses TCPInterface::open(const char *ip_address, const int &port)
+return_statuses TCPInterface::open(const std::string & ip_address,
+                                   const uint16_t & port)
 {
   if (socket_.is_open())
     return OK;
@@ -29,7 +30,7 @@ return_statuses TCPInterface::open(const char *ip_address, const int &port)
   std::stringstream sPort;
   sPort << port;
   tcp::resolver res(io_service_);
-  tcp::resolver::query query(tcp::v4(), ip_address, sPort.str());
+  tcp::resolver::query query(tcp::v4(), ip_address.c_str(), sPort.str());
   tcp::resolver::iterator it = res.resolve(query);
   boost::system::error_code ec;
 
@@ -87,10 +88,8 @@ void TCPInterface::read_handler(const boost::system::error_code& error, size_t b
   bytes_read_ = bytes_read;
 }
 
-return_statuses TCPInterface::read(unsigned char *msg,
-                                   const size_t &buf_size,
-                                   size_t &bytes_read,
-                                   int timeout_ms)
+return_statuses TCPInterface::read(std::vector<uint8_t> * msg,
+                                   const uint16_t & timeout_ms)
 {
   if (!socket_.is_open())
     return SOCKET_CLOSED;
@@ -106,6 +105,10 @@ return_statuses TCPInterface::read(unsigned char *msg,
                                  this,
                                  boost::asio::placeholders::error));
   }
+
+  size_t buf_size = 10000;
+  unsigned char * buffer = new unsigned char[buf_size];
+  size_t bytes_read = 0;
 
   boost::asio::async_read(socket_,
                           boost::asio::buffer(msg, buf_size),
@@ -126,11 +129,17 @@ return_statuses TCPInterface::read(unsigned char *msg,
       socket_.cancel();
     }
   }
+
   // Reset the io service so that it is available for the next call to TCPInterface::read
   io_service_.reset();
 
   if (error_.value() == boost::system::errc::success)
   {
+    for (uint16_t i = 0; i < bytes_read; ++i)
+    {
+      msg->push_back(buffer[i]);
+    }
+
     return OK;
   }
   else if (error_.value() == boost::system::errc::timed_out)
@@ -143,10 +152,9 @@ return_statuses TCPInterface::read(unsigned char *msg,
   }
 }
 
-return_statuses TCPInterface::read_exactly(unsigned char *msg,
-    const size_t &buf_size,
-    const size_t &bytes_to_read,
-    int timeout_ms)
+return_statuses TCPInterface::read_exactly(std::vector<uint8_t> * msg,
+                                           const size_t & bytes_to_read,
+                                           const uint16_t & timeout_ms)
 {
   if (!socket_.is_open())
     return SOCKET_CLOSED;
@@ -163,8 +171,11 @@ return_statuses TCPInterface::read_exactly(unsigned char *msg,
                                  boost::asio::placeholders::error));
   }
 
+  size_t buf_size = 10000;
+  unsigned char * buffer = new unsigned char[buf_size];
+
   boost::asio::async_read(socket_,
-                          boost::asio::buffer(msg, buf_size),
+                          boost::asio::buffer(buffer, buf_size),
                           boost::asio::transfer_exactly(bytes_to_read),
                           boost::bind(&TCPInterface::read_handler,
                                       this,
@@ -182,11 +193,17 @@ return_statuses TCPInterface::read_exactly(unsigned char *msg,
       socket_.cancel();
     }
   }
+
   // Reset the io service so that it is available for the next call to TCPInterface::read_exactly
   io_service_.reset();
 
   if (error_.value() == boost::system::errc::success)
   {
+    for (uint16_t i = 0; i < bytes_to_read; ++i)
+    {
+      msg->push_back(buffer[i]);
+    }
+
     return OK;
   }
   else if (error_.value() == boost::system::errc::timed_out)
@@ -199,13 +216,13 @@ return_statuses TCPInterface::read_exactly(unsigned char *msg,
   }
 }
 
-return_statuses TCPInterface::write(unsigned char *msg, const size_t &msg_size)
+return_statuses TCPInterface::write(const std::vector<uint8_t> & msg)
 {
   if (!socket_.is_open())
     return SOCKET_CLOSED;
 
   boost::system::error_code ec;
-  boost::asio::write(socket_, boost::asio::buffer(msg, msg_size), ec);
+  boost::asio::write(socket_, boost::asio::buffer(&msg[0], msg.size()), ec);
 
   if (ec.value() == boost::system::errc::success)
   {

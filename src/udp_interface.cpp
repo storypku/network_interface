@@ -21,7 +21,8 @@ UDPInterface::~UDPInterface()
 {
 }
 
-return_statuses UDPInterface::open(const char *ip_address, const int &port)
+return_statuses UDPInterface::open(const std::string & ip_address,
+                                   const uint16_t & port)
 {
   if (socket_.is_open())
     return OK;
@@ -29,7 +30,7 @@ return_statuses UDPInterface::open(const char *ip_address, const int &port)
   std::stringstream sPort;
   sPort << port;
   udp::resolver res(io_service_);
-  udp::resolver::query query(udp::v4(), ip_address, sPort.str());
+  udp::resolver::query query(udp::v4(), ip_address.c_str(), sPort.str());
   sender_endpoint_ = *res.resolve(query);
   boost::system::error_code ec;
 
@@ -73,18 +74,24 @@ bool UDPInterface::is_open()
   return socket_.is_open();
 }
 
-return_statuses UDPInterface::read(unsigned char *msg,
-                                   const size_t &buf_size,
-                                   size_t &bytes_read)
+return_statuses UDPInterface::read(std::vector<uint8_t> * msg)
 {
   if (!socket_.is_open())
     return SOCKET_CLOSED;
 
+  size_t buf_size = 10000;
+  unsigned char * buffer = new unsigned char[buf_size];
+
   boost::system::error_code ec;
-  bytes_read = socket_.receive_from(boost::asio::buffer(msg, buf_size), sender_endpoint_, 0, ec);
+  size_t bytes_read = socket_.receive_from(boost::asio::buffer(buffer, buf_size), sender_endpoint_, 0, ec);
 
   if (ec.value() == boost::system::errc::success)
   {
+    for (uint16_t i = 0; i < bytes_read; ++i)
+    {
+      msg->push_back(buffer[i]);
+    }
+
     return OK;
   }
   else
@@ -93,13 +100,13 @@ return_statuses UDPInterface::read(unsigned char *msg,
   }
 }
 
-return_statuses UDPInterface::write(unsigned char *msg, const size_t &msg_size)
+return_statuses UDPInterface::write(const std::vector<uint8_t> & msg)
 {
   if (!socket_.is_open())
     return SOCKET_CLOSED;
 
   boost::system::error_code ec;
-  socket_.send_to(boost::asio::buffer(msg, msg_size), sender_endpoint_, 0, ec);
+  socket_.send_to(boost::asio::buffer(&msg[0], msg.size()), sender_endpoint_, 0, ec);
 
   if (ec.value() == boost::system::errc::success)
   {
