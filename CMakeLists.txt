@@ -1,17 +1,21 @@
 cmake_minimum_required(VERSION 2.8.3)
 project(network_interface)
 
+add_definitions(-std=c++11 -Wall -Wextra -DBUILD_ROS)
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -pthread")
+
 ## Find catkin macros and libraries
 find_package(catkin REQUIRED COMPONENTS
-  std_msgs
   message_generation
+  roslint
+  std_msgs
 )
 
 ## Generate messages in the 'msg' folder
 add_message_files(
   FILES
-  UDPFrame.msg
   TCPFrame.msg
+  UDPFrame.msg
 )
 
 ## Generate added messages and services with any dependencies listed here
@@ -22,9 +26,14 @@ generate_messages(
 
 catkin_package(
   INCLUDE_DIRS include
-  LIBRARIES network_interface
-  CATKIN_DEPENDS std_msgs message_runtime
+  LIBRARIES ${PROJECT_NAME}
+  CATKIN_DEPENDS message_runtime std_msgs
 )
+
+if(CATKIN_ENABLE_TESTING)
+  catkin_add_gtest(${PROJECT_NAME}_tests test/network_interface_test.cpp)
+  target_link_libraries(${PROJECT_NAME}_tests ${catkin_LIBRARIES})
+endif()
 
 ###########
 ## Build ##
@@ -38,14 +47,22 @@ include_directories(include/${PROJECT_NAME}
 
 ## Declare a C++ library
 add_library(${PROJECT_NAME}
-  src/utils.cpp
-  src/udp_interface.cpp
   src/tcp_interface.cpp
+  src/udp_interface.cpp
+  src/utils.cpp
 )
 
 ## Specify libraries to link a library or executable target against
 target_link_libraries(${PROJECT_NAME}
   ${catkin_LIBRARIES}
+)
+
+roslint_cpp(
+  include/${PROJECT_NAME}/network_interface.h
+  include/${PROJECT_NAME}/network_utils.h
+  src/tcp_interface.cpp
+  src/udp_interface.cpp
+  src/utils.cpp
 )
 
 #############
